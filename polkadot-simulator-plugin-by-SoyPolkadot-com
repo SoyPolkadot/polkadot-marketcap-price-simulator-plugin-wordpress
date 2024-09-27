@@ -1,0 +1,296 @@
+<?php
+/*
+Plugin Name: ¿Cuánto Valdrá Polkadot Si...? (Versión Bilingüe)
+Description: Simula escenarios de precio de Polkadot (DOT) basados en la capitalización de mercado de otras criptomonedas. Incluye versiones en español e inglés.
+Version: 2.0
+Author: SoyPolkadot.com (HR)
+License: GPL2
+*/
+
+/**
+ * Encolar estilos necesarios para el plugin.
+ */
+function polkadot_simulator_enqueue_assets() {
+    wp_register_style('polkadot_simulator_styles', false);
+    wp_enqueue_style('polkadot_simulator_styles');
+    $custom_css = "
+        .polkadot-simulator-form, .polkadot-simulator-results {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .polkadot-simulator-form h3, .polkadot-simulator-results h3 {
+            margin-top: 0;
+        }
+        .polkadot-simulator-form p, .polkadot-simulator-results p {
+            margin-bottom: 10px;
+        }
+        .polkadot-simulator-form label {
+            margin-left: 5px;
+        }
+        .polkadot-simulator-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .polkadot-simulator-table th, .polkadot-simulator-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        .polkadot-simulator-table th {
+            background-color: #f2f2f2;
+            text-align: left;
+        }
+        .polkadot-simulator-button {
+            background-color: #e6007a;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .polkadot-simulator-button:hover {
+            background-color: #c50068;
+        }
+        .polkadot-simulator-reset-button {
+            margin-top: 15px;
+            display: inline-block;
+        }
+    ";
+    wp_add_inline_style('polkadot_simulator_styles', $custom_css);
+}
+add_action('wp_enqueue_scripts', 'polkadot_simulator_enqueue_assets');
+
+/**
+ * Shortcode para mostrar el simulador de precio de Polkadot en español.
+ */
+function polkadot_simulator_shortcode() {
+    return polkadot_simulator_render('es');
+}
+add_shortcode('polkadot_simulator', 'polkadot_simulator_shortcode');
+
+/**
+ * Shortcode para mostrar el simulador de precio de Polkadot en inglés.
+ */
+function polkadot_simulator_en_shortcode() {
+    return polkadot_simulator_render('en');
+}
+add_shortcode('polkadot_simulator_en', 'polkadot_simulator_en_shortcode');
+
+/**
+ * Función principal para renderizar el simulador.
+ * @param string $lang Idioma ('es' para español, 'en' para inglés)
+ */
+function polkadot_simulator_render($lang = 'es') {
+    ob_start();
+
+    // Arreglo de criptomonedas para comparación con IDs correctos
+    $coin_options = array(
+        'bitcoin'            => 'Bitcoin',
+        'ethereum'           => 'Ethereum',
+        'tether'             => 'Tether',
+        'binancecoin'        => 'BNB',
+        'usd-coin'           => 'USD Coin',
+        'ripple'             => 'XRP',
+        'dogecoin'           => 'Dogecoin',
+        'the-open-network'   => 'Toncoin',
+        'tron'               => 'Tron',
+        'solana'             => 'Solana',
+    );
+
+    // Textos en español e inglés
+    $texts = array(
+        'es' => array(
+            'form_title' => 'Simulador de Precio de Polkadot',
+            'compare_with' => 'Comparar con',
+            'custom_market_cap' => 'Capitalización personalizada (en miles de millones USD):',
+            'calculate' => 'Calcular',
+            'simulation_results' => 'Resultados de la Simulación:',
+            'item' => 'Concepto',
+            'value' => 'Valor',
+            'current_price' => 'Precio actual de Polkadot',
+            'current_market_cap' => 'Capitalización de mercado actual de Polkadot',
+            'market_cap_of' => 'Capitalización de mercado de',
+            'custom_market_cap_item' => 'Capitalización de mercado personalizada',
+            'hypothetical_price' => 'Precio hipotético de Polkadot',
+            'potential_gain' => 'Ganancia potencial',
+            'data_provided_by' => 'Datos proporcionados por CoinGecko API.',
+            'recalculate' => 'Volver a calcular',
+            'error_polkadot_data' => 'Error al obtener los datos de Polkadot.',
+            'error_data' => 'Error al obtener los datos de',
+            'invalid_option' => 'Opción inválida seleccionada.',
+            'insufficient_data' => 'Datos insuficientes para realizar el cálculo.',
+            'enter_valid_market_cap' => 'Por favor, introduce una capitalización de mercado válida.',
+        ),
+        'en' => array(
+            'form_title' => 'Polkadot Price Simulator',
+            'compare_with' => 'Compare with',
+            'custom_market_cap' => 'Custom Market Cap (in billions USD):',
+            'calculate' => 'Calculate',
+            'simulation_results' => 'Simulation Results:',
+            'item' => 'Item',
+            'value' => 'Value',
+            'current_price' => 'Current Polkadot Price',
+            'current_market_cap' => 'Current Polkadot Market Cap',
+            'market_cap_of' => 'Market Cap of',
+            'custom_market_cap_item' => 'Custom Market Cap',
+            'hypothetical_price' => 'Hypothetical Polkadot Price',
+            'potential_gain' => 'Potential Gain',
+            'data_provided_by' => 'Data provided by CoinGecko API.',
+            'recalculate' => 'Recalculate',
+            'error_polkadot_data' => 'Error retrieving Polkadot data.',
+            'error_data' => 'Error retrieving data for',
+            'invalid_option' => 'Invalid option selected.',
+            'insufficient_data' => 'Insufficient data to perform the calculation.',
+            'enter_valid_market_cap' => 'Please enter a valid market capitalization.',
+        ),
+    );
+
+    $t = $texts[$lang]; // Seleccionamos el conjunto de textos según el idioma
+
+    $submit_name = 'polkadot_simulator_submit_' . $lang;
+    $reset_name = 'polkadot_simulator_reset_' . $lang;
+
+    if (isset($_POST[$submit_name])) {
+        $simulation_option = sanitize_text_field($_POST['simulation_option']);
+        $selected_market_cap = 0;
+
+        // Obtener datos de Polkadot
+        $polkadot_data = polkadot_get_coingecko_data('polkadot');
+        if ($polkadot_data && isset($polkadot_data['market_data'])) {
+            $polkadot_supply = $polkadot_data['market_data']['circulating_supply'];
+            $polkadot_current_price = $polkadot_data['market_data']['current_price']['usd'];
+            $polkadot_market_cap = $polkadot_data['market_data']['market_cap']['usd'];
+        } else {
+            echo '<p>' . esc_html($t['error_polkadot_data']) . '</p>';
+            error_log('market_data no disponible para Polkadot.');
+            return ob_get_clean();
+        }
+
+        if ($simulation_option == 'custom') {
+            if (isset($_POST['custom_market_cap']) && $_POST['custom_market_cap'] !== '') {
+                $custom_market_cap = floatval($_POST['custom_market_cap']);
+                if ($custom_market_cap <= 0) {
+                    echo '<p>' . esc_html($t['enter_valid_market_cap']) . '</p>';
+                    return ob_get_clean();
+                }
+                $selected_market_cap = $custom_market_cap * 1000000000;
+                $comparison_coin_name = $t['custom_market_cap_item'];
+                $comparison_market_cap = $selected_market_cap;
+            } else {
+                echo '<p>' . esc_html($t['enter_valid_market_cap']) . '</p>';
+                return ob_get_clean();
+            }
+        } elseif (array_key_exists($simulation_option, $coin_options)) {
+            $selected_token = $simulation_option;
+            $token_data = polkadot_get_coingecko_data($selected_token);
+            if ($token_data && isset($token_data['market_data'])) {
+                $selected_market_cap = $token_data['market_data']['market_cap']['usd'];
+                // Usar el nombre predefinido de $coin_options
+                $comparison_coin_name = $coin_options[$selected_token];
+                $comparison_market_cap = $selected_market_cap;
+            } else {
+                echo '<p>' . esc_html($t['error_data']) . ' ' . esc_html($coin_options[$selected_token]) . '.</p>';
+                error_log('market_data no disponible para ' . $selected_token . '.');
+                return ob_get_clean();
+            }
+        } else {
+            echo '<p>' . esc_html($t['invalid_option']) . '</p>';
+            return ob_get_clean();
+        }
+
+        // Verificar que los datos necesarios están disponibles y son válidos
+        if (empty($polkadot_supply) || empty($selected_market_cap) || $polkadot_supply == 0) {
+            echo '<p>' . esc_html($t['insufficient_data']) . '</p>';
+            error_log('Datos insuficientes: polkadot_supply=' . $polkadot_supply . ', selected_market_cap=' . $selected_market_cap);
+            return ob_get_clean();
+        }
+
+        $hypothetical_price = $selected_market_cap / $polkadot_supply;
+        $x_gain = $hypothetical_price / $polkadot_current_price;
+
+        // Formatear números
+        $polkadot_current_price_formatted = '$' . number_format($polkadot_current_price, 2);
+        $hypothetical_price_formatted = '$' . number_format($hypothetical_price, 2);
+        $x_gain_formatted = number_format($x_gain, 2) . 'X';
+        $polkadot_market_cap_formatted = '$' . number_format($polkadot_market_cap, 0, '.', ',');
+        $comparison_market_cap_formatted = '$' . number_format($comparison_market_cap, 0, '.', ',');
+
+        // Mostrar los resultados con estilo mejorado
+        echo '<div class="polkadot-simulator-results">';
+        echo '<h3>' . esc_html($t['simulation_results']) . '</h3>';
+        echo '<table class="polkadot-simulator-table">';
+        echo '<tr><th>' . esc_html($t['item']) . '</th><th>' . esc_html($t['value']) . '</th></tr>';
+        echo '<tr><td>' . esc_html($t['current_price']) . '</td><td>' . $polkadot_current_price_formatted . '</td></tr>';
+        echo '<tr><td>' . esc_html($t['current_market_cap']) . '</td><td>' . $polkadot_market_cap_formatted . '</td></tr>';
+        if ($simulation_option != 'custom') {
+            echo '<tr><td>' . esc_html($t['market_cap_of']) . ' ' . esc_html($comparison_coin_name) . '</td><td>' . $comparison_market_cap_formatted . '</td></tr>';
+        } else {
+            echo '<tr><td>' . esc_html($t['custom_market_cap_item']) . '</td><td>' . $comparison_market_cap_formatted . '</td></tr>';
+        }
+        echo '<tr><td>' . esc_html($t['hypothetical_price']) . '</td><td>' . $hypothetical_price_formatted . '</td></tr>';
+        echo '<tr><td>' . esc_html($t['potential_gain']) . '</td><td>' . $x_gain_formatted . '</td></tr>';
+        echo '</table>';
+        echo '<p><small>' . esc_html($t['data_provided_by']) . '</small></p>';
+        echo '<form method="post" class="polkadot-simulator-reset-button">';
+        echo '<input type="submit" name="' . esc_attr($reset_name) . '" value="' . esc_attr($t['recalculate']) . '" class="polkadot-simulator-button">';
+        echo '</form>';
+        echo '</div>';
+    } else {
+        // Mostrar el formulario
+        echo '<div class="polkadot-simulator-form">';
+        echo '<form method="post">';
+        echo '<h3>' . esc_html($t['form_title']) . '</h3>';
+        foreach ($coin_options as $key => $label) {
+            echo '<p>';
+            echo '<input type="radio" name="simulation_option" value="' . esc_attr($key) . '" id="' . esc_attr($key . '_' . $lang) . '" required>';
+            echo '<label for="' . esc_attr($key . '_' . $lang) . '"> ' . esc_html($t['compare_with']) . ' ' . esc_html($label) . '</label>';
+            echo '</p>';
+        }
+        echo '<p>';
+        echo '<input type="radio" name="simulation_option" value="custom" id="custom_' . esc_attr($lang) . '" required>';
+        echo '<label for="custom_' . esc_attr($lang) . '"> ' . esc_html($t['custom_market_cap']) . ' </label>';
+        echo '<input type="number" step="0.01" min="0" name="custom_market_cap" placeholder="500">';
+        echo '</p>';
+        echo '<p>';
+        echo '<input type="submit" name="' . esc_attr($submit_name) . '" value="' . esc_attr($t['calculate']) . '" class="polkadot-simulator-button">';
+        echo '</p>';
+        echo '</form>';
+        echo '</div>';
+    }
+
+    return ob_get_clean();
+}
+
+/**
+ * Función para obtener datos de criptomonedas desde la API de CoinGecko con cache.
+ */
+function polkadot_get_coingecko_data($coin_id) {
+    $cache_key = 'coingecko_data_' . $coin_id;
+    $data = get_transient($cache_key);
+
+    if (false === $data) {
+        $url = 'https://api.coingecko.com/api/v3/coins/' . $coin_id . '?localization=false&market_data=true';
+
+        $response = wp_remote_get($url);
+
+        if (is_wp_error($response)) {
+            error_log('Error en la solicitud API: ' . $response->get_error_message());
+            return false;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        if (isset($data['error'])) {
+            error_log('La API devolvió un error para ' . $coin_id . ': ' . $data['error']);
+            return false;
+        }
+
+        // Almacenar en cache por 5 minutos
+        set_transient($cache_key, $data, 300);
+    }
+
+    return $data;
+}
